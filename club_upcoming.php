@@ -62,7 +62,7 @@ class Page extends ClubPageBase
 			' JOIN countries cr ON ct.country_id = cr.id WHERE ', 
 			$condition);
 		$query->add(' ORDER BY e.start_time LIMIT ' . ($_page * $page_size) . ',' . $page_size);
-
+		
 		while ($row = $query->next())
 		{
 			list ($id, $name, $start_time, $duration, $flags, $city_name, $country_name, $event_timezone, $addr_id, $addr_flags, $addr, $addr_url, $addr_name, $come_odds, $bringing, $late) = $row;

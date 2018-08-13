@@ -42,11 +42,6 @@ try
 	<script>
 	var dateFormat = "yy-mm-dd";
 	var parts = "<?php echo $end_date_str; ?>".split("-")
-	var endDate = null;
-	if (parts.length > 2)
-	{
-		endDate = new Date(parts[0], parts[1] - 1, parts[2]);
-	}
 	var startDate = $('#form-start-date').datepicker({ maxDate:14, dateFormat:dateFormat, changeMonth: true, changeYear: true }).on("change", function() { endDate.datepicker("option", "minDate", this.value); });
 	var endDate = $('#form-end-date').datepicker({ minDate:0, dateFormat:dateFormat, changeMonth: true, changeYear: true }).on("change", function() { startDate.datepicker("option", "maxDate", this.value); });
 	

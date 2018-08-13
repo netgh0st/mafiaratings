@@ -42,7 +42,7 @@ class Page extends PageBase
 			{
 				if ($addr_id != $this->event->addr_id)
 				{
-					list($timezone, $this->event->addr, $this->event->addr_url, $this->event->addr_flags) =
+					list($this->event->timezone, $this->event->addr, $this->event->addr_url, $this->event->addr_flags) =
 						Db::record(
 							get_label('address'), 
 							'SELECT c.timezone, a.address, a.map_url, a.flags from addresses a' .
@@ -50,14 +50,12 @@ class Page extends PageBase
 								' WHERE a.id = ?',
 							$addr_id);
 					$this->event->addr_id = $addr_id;
-					$this->event->set_datetime($this->event->timestamp, $timezone);
 					$template_for = EMAIL_DEFAULT_FOR_CHANGE_ADDRESS;
 				}
 			}
 			else
 			{
-				list($timezone) = Db::record(get_label('city'), 'SELECT timezone FROM cities WHERE id = ?', $city_id);
-				$this->event->set_datetime($this->event->timestamp, $timezone);
+				list($this->event->timezone) = Db::record(get_label('city'), 'SELECT timezone FROM cities WHERE id = ?', $city_id);
 			}
 		}
 		
@@ -128,7 +126,7 @@ class Page extends PageBase
 		$this->event->langs = get_langs($this->event->langs);
 		
 		date_default_timezone_set($this->event->timezone);
-		$this->event->timestamp = mktime($this->event->hour, $this->event->minute, 0, $this->event->month, $this->event->day, $this->event->year);
+		$this->event->set_timestamp(mktime($this->event->hour, $this->event->minute, 0, $this->event->month, $this->event->day, $this->event->year));
 		
 		if (isset($_POST['update']))
 		{

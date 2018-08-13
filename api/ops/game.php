@@ -480,7 +480,7 @@ class CommandQueue
 
 			$event->name = $rec->name;
 			$event->duration = $rec->duration;
-			$event->timestamp = $rec->start;
+			$event->set_timestamp($rec->start);
 			$event->price = $rec->price;
 			if (isset($rec->addr_id))
 			{

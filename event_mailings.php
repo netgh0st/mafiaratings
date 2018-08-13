@@ -75,8 +75,7 @@ class Page extends PageBase
 		}
 		
 		echo '<tr class="th darker">';
-		echo '<td width="52"><a href="create_event_mailing.php?events=' . $this->event->id . '&bck=1" title="' . get_label('New mailing') . '">';
-		echo '<img src="images/create.png" border="0"></a></td>';
+		echo '<td width="52"><button class="icon" onclick="mr.createEventMailing(' . $this->event->id . ')" title="' . get_label('New mailing') . '")"><img src="images/create.png"></button></td>';
 		echo '<td width="150">' . get_label('Date') . '</td><td>' . get_label('Recipients') . '</td><td width="80">' . get_label('Language') . '</td><td width="80">' . get_label('Status') . '</td><td width="80">' . get_label('Emails sent') . '</td></tr>';
 		
 		$query = new DbQuery('SELECT id, send_time, send_count, status, lang, flags FROM event_emails WHERE event_id = ? ORDER BY send_time', $this->event->id);

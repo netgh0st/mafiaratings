@@ -84,7 +84,7 @@ class Page extends PageBase
 		$event = new Event();
 		$event->id = 0;
 		$event->name = get_label('My event');
-		$event->timestamp = time();
+		$event->set_timestamp(time());
 		$event->timezone = get_timezone();
 		$event->duration = 6 * 3600;
 		$event->addr_id = 0;

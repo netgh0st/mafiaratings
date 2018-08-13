@@ -350,7 +350,7 @@ var mr = new function()
 				id_str += delim + ids[i];
 				delim = ',';
 			}
-			window.location.replace('create_event_mailing.php?bck=1&for=1&msg=0&events=' + ids);
+			mr.createEventMailing(id_str);
 		});
 	}
 	
@@ -399,6 +399,11 @@ var mr = new function()
 	this.editEvent = function(id)
 	{
 		window.location.replace("edit_event.php?bck=1&id=" + id);
+	}
+	
+	this.createEventMailing = function(events)
+	{
+		dlg.form('event_mail_create.php?events=' + events, refr);
 	}
 
 	this.eventMailing = function(id)

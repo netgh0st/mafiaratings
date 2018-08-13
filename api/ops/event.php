@@ -9,6 +9,16 @@ define('CURRENT_VERSION', 0);
 
 class ApiPage extends OpsApiPageBase
 {
+	private static function get_timestamp($param, $timezone)
+	{
+		date_default_timezone_set($timezone);
+		if (is_numeric($param))
+		{
+			return new DateTime((int)$param);
+		}
+		return strtotime($param);
+	}
+	
 	//-------------------------------------------------------------------------------------------------------
 	// create
 	//-------------------------------------------------------------------------------------------------------
@@ -23,8 +33,6 @@ class ApiPage extends OpsApiPageBase
 		$event->set_club($club);
 	
 		$event->name = get_required_param('name');
-		$event->hour = get_required_param('hour');
-		$event->minute = get_required_param('minute');
 		$event->duration = get_required_param('duration');
 		$event->price = '';
 		if (isset($_REQUEST['price']))
@@ -54,43 +62,60 @@ class ApiPage extends OpsApiPageBase
 			$event->langs = $club->langs;
 		}
 		
-		$event->addr_id = (int)get_required_param('address_id');
+		$event->addr_id = (int)get_optional_param('address_id', 0);
 		if ($event->addr_id <= 0)
 		{
 			$event->addr = get_required_param('address');
-			$event->country = get_required_param('country');
-			$event->city = get_required_param('city');
+			$event->country_id = (int)get_optional_param('country_id', 0);
+			if ($event->country_id <= 0)
+			{
+				$event->country = get_required_param('country');
+			}
+			$event->city_id = (int)get_optional_param('city_id', 0);
+			if ($event->city_id <= 0)
+			{
+				$event->city = get_required_param('city');
+			}
 		}
 		
 		Db::begin();
-		date_default_timezone_set($event->timezone);
-		$time = mktime($event->hour, $event->minute, 0, get_required_param('month'), get_required_param('day'), get_required_param('year'));
+		$event->normalize();
+		$start_time = get_required_param('start');
+		$event->timestamp = $this->get_timestamp($start_time, $event->timezone);
 		if (isset($_REQUEST['weekdays']))
 		{
 			$weekdays = $_REQUEST['weekdays'];
-			$until = mktime($event->hour, $event->minute, 0, get_required_param('to_month'), get_required_param('to_day'), get_required_param('to_year'));
-			if ($time < time())
-			{
-				$time += 86400; // 86400 - seconds per day
-			}
-			
 			$event_ids = array();
-			$weekday = (1 << date('w', $time));
 			
-			while ($time < $until)
+			$datetime = new DateTime($start_time, new DateTimeZone($event->timezone));
+			$weekday = (1 << (int)$datetime->format('w'));
+			while ($datetime->getTimestamp() < time())
 			{
-				if (($weekdays & $weekday) != 0)
-				{
-					$event->set_datetime($time, $event->timezone);
-					$event_ids[] = $event->create();
-				}
+				$datetime->modify('+1 day');
 				
-				$time += 86400; // 86400 - seconds per day
 				$weekday <<= 1;
 				if ($weekday > WEEK_FLAG_ALL)
 				{
 					$weekday = 1;
 				}
+				$datetime->modify('+1 day');
+			}
+			
+			$end = $this->get_timestamp(get_required_param('end'), $event->timezone);
+			while ($datetime->getTimestamp() <= $end)
+			{
+				if (($weekdays & $weekday) != 0)
+				{
+					$event->set_timestamp($datetime->getTimestamp());
+					$event_ids[] = $event->create();
+				}
+				
+				$weekday <<= 1;
+				if ($weekday > WEEK_FLAG_ALL)
+				{
+					$weekday = 1;
+				}
+				$datetime->modify('+1 day');
 			}
 			
 			if (count($event_ids) == 0)
@@ -100,7 +125,6 @@ class ApiPage extends OpsApiPageBase
 		}
 		else
 		{
-			$event->timestamp = $time;
 			$event_ids = array($event->create());
 		}
 		Db::commit();

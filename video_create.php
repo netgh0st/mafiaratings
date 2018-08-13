@@ -50,7 +50,7 @@ try
 	}
 
 	date_default_timezone_set($club->timezone);
-	$date = date('m/d/Y', $timestamp);
+	$date = date('Y-m-d', $timestamp);
 	$hour = date('G', $timestamp);
 	$minute = 0; //date('i', $timestamp);
 	
@@ -78,7 +78,7 @@ try
 		echo '<tr><td>' . get_label('Time') . ':</td><td><input id="form-hour" value="' . $hour . '"> : <input id="form-minute" value="' . $minute . '"></td></tr>';
 ?>
 		<script>
-		$('#form-date').datepicker();
+		$('#form-date').datepicker({ dateFormat:"yy-mm-dd", changeMonth: true, changeYear: true });
 		$( "#form-hour" ).spinner({ step: 1, max: 23, min: 0, page: 4 });
 		$( "#form-minute" ).spinner({ step: 1, max: 59, min: 0, page: 10 });
 		</script>

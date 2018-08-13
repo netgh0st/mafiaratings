@@ -24,6 +24,12 @@ try
 	$club = $_profile->clubs[$club_id];
 	$event = new Event();
 	$event->set_club($club);
+	
+	date_default_timezone_set($event->timezone);
+	$date = date('Y-m-d', $event->timestamp);
+	$end_date = date('Y-m-d', $event->timestamp + 3024000); // plus 5 weeks
+	$hour = date('H', $event->timestamp);
+	$minute = date('i', $event->timestamp);
 
 	echo '<table class="dialog_form" width="100%">';
 	echo '<tr><td width="160">'.get_label('Event name').':</td><td><input id="form-name" value="' . htmlspecialchars($event->name, ENT_QUOTES) . '"></td></tr>';
@@ -31,7 +37,7 @@ try
 	echo '<tr><td>'.get_label('Date').':</td><td>';
 	echo '<input type="checkbox" id="form-multiple" onclick="multipleChange()"> ' . get_label('multiple events');
 	echo '<div id="form-single_date">';
-	show_date_controls($event->day, $event->month, $event->year, 'form-');
+	echo '<input type="text" id="form-date" value="' . $date . '">';
 	echo '</div><div id="form-multiple_date" style="display:none;">';
 	echo '<p>' . get_label('Every') . ': ';
 	$weekday_names = array(get_label('sun'), get_label('mon'), get_label('tue'), get_label('wed'), get_label('thu'), get_label('fri'), get_label('sat'));
@@ -41,26 +47,28 @@ try
 	}
 	echo '</p>';
 	echo '<p>' . get_label('From') . ' ';
-	show_date_controls($event->day, $event->month, $event->year, 'form-from_');
+	echo '<input type="text" id="form-from" value="' . $date . '">';
 	echo ' ' . get_label('to') . ' ';
-	show_date_controls($event->day, $event->month, $event->year, 'form-to_');
+	echo '<input type="text" id="form-to" value="' . $end_date . '">';
 	echo '</td></tr>';
 	echo '</div></td></tr>';
 		
 	echo '<tr><td>'.get_label('Time').':</td><td>';
-	show_time_controls($event->hour, $event->minute, 'form-');
+	echo '<input id="form-hour" value="' . $hour . '"> : <input id="form-minute" value="' . $minute . '">';
 	echo '</td></tr>';
 		
 	echo '<tr><td>'.get_label('Duration').':</td><td><select id="form-duration">';
-	for ($i = 1; $i <= 12; ++$i)
+	show_option(3600, $event->duration, get_label('1 hour'));
+	for ($i = 2; $i <= 12; ++$i)
 	{
-		show_option($i * 3600, $event->duration, $i);
+		show_option($i * 3600, $event->duration, $i . ' ' . get_label('hours'));
 	}
-	for ($i = 24; $i <= 120; $i += 24)
+	show_option(86400, $event->duration, get_label('1 day'));
+	for ($i = 2; $i <= 5; ++$i)
 	{
-		show_option($i * 3600, $event->duration, $i);
+		show_option($i * 86400, $event->duration, $i . ' ' . get_label('days'));
 	}
-	echo '</select> '.get_label('hours').'</td></tr>';
+	echo '</select></td></tr>';
 		
 	$query = new DbQuery('SELECT id, name FROM addresses WHERE club_id = ? AND (flags & ' . ADDR_FLAG_NOT_USED . ') = 0 ORDER BY name', $event->club_id);
 	echo '<tr><td>'.get_label('Address').':</td><td>';
@@ -230,6 +238,27 @@ try
 	}
 	addressClick();
 	
+	var dateFormat = "yy-mm-dd";
+	$('#form-date').datepicker({ minDate:0, dateFormat:dateFormat, changeMonth: true, changeYear: true });
+	var parts = "<?php echo $end_date; ?>".split("-")
+	var startDate = $('#form-from').datepicker({ minDate:0, maxDate:5, dateFormat:dateFormat, changeMonth: true, changeYear: true }).on("change", function() { endDate.datepicker("option", "minDate", this.value); });
+	var endDate = $('#form-to').datepicker({ minDate:0, dateFormat:dateFormat, changeMonth: true, changeYear: true }).on("change", function() { startDate.datepicker("option", "maxDate", this.value); });
+	
+	$("#form-hour").spinner({ step:1, max:23, min:0 }).width(16);
+	$("#form-minute").spinner({ step:5, max:50, min:0, numberFormat: "d2" }).width(16);
+	
+	function addZero(str)
+	{
+		switch (str.length)
+		{
+			case 0:
+				return "00";
+			case 1:
+				return "0" + str;
+		}
+		return str;
+	}
+	
 	function copyEvent()
 	{
 		json.get("api/ops/event.php?op=get&event_id=" + $("#form-copy").val(), function(json)
@@ -267,8 +296,6 @@ try
 			op: "create"
 			, club_id: <?php echo $club_id; ?>
 			, name: $("#form-name").val()
-			, hour: $("#form-hour").val()
-			, minute: $("#form-minute").val()
 			, duration: $("#form-duration").val()
 			, price: $("#form-price").val()
 			, address_id: _addr
@@ -286,6 +313,7 @@ try
 			params['city'] = $("#form-city").val();
 		}
 		
+		var time = " " + addZero($("#form-hour").val()) + ":" + addZero($("#form-minute").val());
 		if ($('#form-multiple').attr('checked'))
 		{
 			var weekdays = 0;
@@ -298,18 +326,13 @@ try
 			if ($("#form-wd6").attr('checked')) weekdays |= <?php echo WEEK_FLAG_SAT; ?>;
 			
 			params['weekdays'] = weekdays;
-			params['month'] = $("#form-from_month").val();
-			params['day'] = $("#form-from_day").val();
-			params['year'] = $("#form-from_year").val();
-			params['to_month'] = $("#form-to_month").val();
-			params['to_day'] = $("#form-to_day").val();
-			params['to_year'] = $("#form-to_year").val();
+			
+			params['start'] = startDate.val() + time;
+			params['end'] = endDate.val() + time;
 		}
 		else
 		{
-			params['month'] = $("#form-month").val();
-			params['day'] = $("#form-day").val();
-			params['year'] = $("#form-year").val();
+			params['start'] = $("#form-date").val() + time;
 		}
 		
 		json.post("api/ops/event.php", params, onSuccess);

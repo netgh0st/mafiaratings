@@ -36,7 +36,7 @@ try
 	$langs = $club->langs;
 	
 	date_default_timezone_set(get_timezone());
-	$date = date('m/d/Y', $time);
+	$date = date('Y-m-d', $time);
 	$hour = date('G', $time);
 	$minute = 0;
 	
@@ -60,7 +60,7 @@ try
 		echo '<tr><td>' . get_label('Time') . ':</td><td><input id="form-hour" value="' . $hour . '"> : <input id="form-minute" value="' . $minute . '"></td></tr>';
 ?>
 		<script>
-		$('#form-date').datepicker();
+		$('#form-date').datepicker({ dateFormat:"yy-mm-dd", changeMonth: true, changeYear: true });
 		$( "#form-hour" ).spinner({ step: 1, max: 23, min: 0, page: 4 });
 		$( "#form-minute" ).spinner({ step: 1, max: 59, min: 0, page: 10 });
 		</script>

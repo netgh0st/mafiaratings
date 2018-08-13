@@ -137,7 +137,9 @@ class Event
 	public $addr;
 	public $addr_url;
 	public $addr_flags;
+	public $city_id;
 	public $city;
+	public $country_id;
 	public $country;
 	public $club_id;
 	public $club_name;
@@ -167,7 +169,9 @@ class Event
 		$this->duration = 6 * 3600;
 		$this->addr_id = -1;
 		$this->addr = '';
+		$this->city_id = -1;
 		$this->city = '';
+		$this->country_id = -1;
 		$this->country = '';
 		$this->addr_url = '';
 		$this->addr_flags = 0;
@@ -197,30 +201,14 @@ class Event
 					break;
 				}
 			}
-			$this->set_datetime(time(), $timezone);
+			$this->set_timestamp(time());
+			$this->timezone = $timezone;
 		}
 	}
 	
-	function set_datetime($timestamp, $timezone)
+	function set_timestamp($timestamp)
 	{
-		date_default_timezone_set($timezone);
-		$this->timestamp = $timestamp;
-		$this->timezone = $timezone;
-		$this->day = date('j', $timestamp);
-		$this->month = date('n', $timestamp);
-		$this->year = date('Y', $timestamp);
-		$this->hour = date('G', $timestamp);
-		$this->minute = round(date('i', $timestamp) / 10) * 10;
-	}
-	
-	function set_time($timestamp, $timezone)
-	{
-		date_default_timezone_set($timezone);
-		$this->hour = date('G', $timestamp);
-		$this->minute = round(date('i', $timestamp) / 10) * 10;
-		$timestamp = mktime($this->hour, $this->minute, 0, $this->month, $this->day, $this->year);
-		$this->timestamp = $timestamp;
-		$this->timezone = $timezone;
+		$this->timestamp = floor($timestamp / 300) * 300; // round to 5 minutes
 	}
 	
 	function set_default_name()
@@ -295,8 +283,7 @@ class Event
 		
 		if ($row)
 		{
-			list($this->addr_id, $this->name, $timezone, $this->addr, $this->addr_url, $this->addr_flags) = $row;
-			$this->set_datetime($this->timestamp, $timezone);
+			list($this->addr_id, $this->name, $this->timezone, $this->addr, $this->addr_url, $this->addr_flags) = $row;
 		}
 		else
 		{
@@ -305,14 +292,65 @@ class Event
 			$this->addr = '';
 			$this->addr_url = '';
 			$this->addr_flags = 0;
-			
-			$this->set_datetime(time(), $club->timezone);
+			$this->set_timestamp(time());
+			$this->timezone = $club->timezone;
 		}
 		
 		$this->langs = $club->langs;
 		$this->price = $club->price;
+		$this->city_id = $club->city_id;
 		$this->city = $club->city;
+		$this->country_id = $club->country_id;
 		$this->country = $club->country;
+	}
+	
+	function normalize()
+	{
+		global $_lang_code; 
+		
+		if ($this->addr_id <= 0)
+		{
+			if ($this->country_id <= 0)
+			{
+				$this->country_id = retrieve_country_id($this->country);
+			}
+			
+			if ($this->city_id <= 0)
+			{
+				$city_id = retrieve_city_id($this->city, $this->country_id, $club->timezone);
+			}
+			
+			if ($this->addr == '')
+			{
+				throw new Exc(get_label('Please enter [0].', get_label('address')));
+			}
+			$address = htmlspecialchars($this->addr, ENT_QUOTES);
+
+			check_address_name($address, $this->club_id);
+
+			Db::exec(
+				get_label('address'), 
+				'INSERT INTO addresses (name, club_id, address, map_url, city_id, flags) values (?, ?, ?, \'\', ?, 0)',
+				$address, $this->club_id, $address, $city_id);
+			list ($this->addr_id) = Db::record(get_label('address'), 'SELECT LAST_INSERT_ID()');
+			$log_details =
+				'name=' . $address .
+				"<br>address=" . $address .
+				"<br>city=" . $this->city . ' (' . $city_id . ')';
+			db_log('address', 'Created', $log_details, $this->addr_id, $this->club_id);
+
+			$warning = load_map_info($this->addr_id);
+			if ($warning != NULL)
+			{
+				echo '<p>' . $warning . '</p>';
+			}
+
+			$this->timezone = $club->timezone;
+		}
+		else
+		{
+			list($this->timezone, $this->country_id, $this->country, $this->city_id, $this->city) = Db::record(get_label('address'), 'SELECT ct.timezone, cn.id, cn.name_' . $_lang_code . ', ct.id, ct.name_' . $_lang_code . ' FROM addresses a JOIN cities ct ON a.city_id = ct.id JOIN countries cn ON cn.id = ct.country_id WHERE a.id = ?', $this->addr_id);
+		}
 	}
 
 	function create()
@@ -334,43 +372,7 @@ class Event
 		
 		$club = $_profile->clubs[$this->club_id];
 		
-		Db::begin();
-		
-		if ($this->addr_id <= 0)
-		{
-			$city_id = retrieve_city_id($this->city, retrieve_country_id($this->country), $club->timezone);
-
-			if ($this->addr == '')
-			{
-				throw new Exc(get_label('Please enter [0].', get_label('address')));
-			}
-			$sc_address = htmlspecialchars($this->addr, ENT_QUOTES);
-	
-			check_address_name($sc_address, $this->club_id);
-	
-			Db::exec(
-				get_label('address'), 
-				'INSERT INTO addresses (name, club_id, address, map_url, city_id, flags) values (?, ?, ?, \'\', ?, 0)',
-				$sc_address, $this->club_id, $sc_address, $city_id);
-			list ($this->addr_id) = Db::record(get_label('address'), 'SELECT LAST_INSERT_ID()');
-			$log_details =
-				'name=' . $sc_address .
-				"<br>address=" . $sc_address .
-				"<br>city=" . $this->city . ' (' . $city_id . ')';
-			db_log('address', 'Created', $log_details, $this->addr_id, $this->club_id);
-	
-			$warning = load_map_info($this->addr_id);
-			if ($warning != NULL)
-			{
-				echo '<p>' . $warning . '</p>';
-			}
-
-			$this->timezone = $club->timezone;
-		}
-		else
-		{
-			list($this->timezone) = Db::record(get_label('address'), 'SELECT c.timezone FROM addresses a JOIN cities c ON a.city_id = c.id WHERE a.id = ?', $this->addr_id);
-		}
+		$this->normalize();
 		
 		$query = new DbQuery('SELECT max(start_time) FROM events WHERE start_time >= ? AND start_time < ?', $this->timestamp, $this->timestamp + 60);
 		if (($row = $query->next()) && $row[0] != NULL)
@@ -398,9 +400,6 @@ class Event
 			"<br>rules=" . $this->rules_id .
 			"<br>scoring=" . $this->scoring_id;
 		db_log('event', 'Created', $log_details, $this->id, $this->club_id);
-		
-		Db::commit();
-		
 		return $this->id;
 	}
 	
@@ -542,12 +541,12 @@ class Event
 	
 		$this->id = $event_id;
 		list (
-			$this->name, $this->price, $this->club_id, $this->club_name, $this->club_flags, $this->club_url, $timestamp, $this->duration,
-			$this->addr_id, $this->addr, $this->addr_url, $timezone, $this->addr_flags,
-			$this->notes, $this->langs, $this->flags, $this->rules_id, $this->scoring_id, $this->coming_odds, $this->city, $this->country) =
+			$this->name, $this->price, $this->club_id, $this->club_name, $this->club_flags, $this->club_url, $this->timestamp, $this->duration,
+			$this->addr_id, $this->addr, $this->addr_url, $this->timezone, $this->addr_flags,
+			$this->notes, $this->langs, $this->flags, $this->rules_id, $this->scoring_id, $this->coming_odds, $this->city_id, $this->city, $this->country_id, $this->country) =
 				Db::record(
 					get_label('event'), 
-					'SELECT e.name, e.price, c.id, c.name, c.flags, c.web_site, e.start_time, e.duration, a.id, a.address, a.map_url, i.timezone, a.flags, e.notes, e.languages, e.flags, e.rules_id, e.scoring_id, u.coming_odds, i.name_' . $_lang_code . ', o.name_' . $_lang_code . ' FROM events e' .
+					'SELECT e.name, e.price, c.id, c.name, c.flags, c.web_site, e.start_time, e.duration, a.id, a.address, a.map_url, i.timezone, a.flags, e.notes, e.languages, e.flags, e.rules_id, e.scoring_id, u.coming_odds, i.id, i.name_' . $_lang_code . ', o.id, o.name_' . $_lang_code . ' FROM events e' .
 						' JOIN addresses a ON e.address_id = a.id' .
 						' JOIN clubs c ON e.club_id = c.id' .
 						' JOIN cities i ON a.city_id = i.id' .
@@ -555,8 +554,6 @@ class Event
 						' LEFT OUTER JOIN event_users u ON u.event_id = e.id AND u.user_id = ?' .
 						' WHERE e.id = ?',
 					$user_id, $event_id);
-			
-		$this->set_datetime($timestamp, $timezone);
 	}
 	
 	function show_details($show_attendance = true, $show_details = true)
