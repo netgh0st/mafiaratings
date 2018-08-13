@@ -717,14 +717,14 @@ class CommandQueue
 		{
 			throw new Exc(get_label('Invalid request'));
 		}
-		$game = new GameState();
-		$game->create_from_json($rec->game);
-		if ($game->event_id > 0)
+		$gs = new GameState();
+		$gs->create_from_json($rec->game);
+		if ($gs->event_id > 0)
 		{
-			$this->correct_game($game);
-			$game->save();
-			save_game_results($game);
-			reset_viewed_game($game->id);
+			$this->correct_game($gs);
+			$gs->save();
+			save_game_results(new Game($gs));
+			reset_viewed_game($gs->id);
 		}
 		else
 		{

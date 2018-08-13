@@ -17,8 +17,8 @@ class Page extends ViewGamePageBase
 		echo '<td width="80" align="center">'.get_label('Role').'</td></tr>';
 		for ($i = 0; $i < 10; ++$i)
 		{
-			$player = $this->vg->gs->players[$i];
-			$player_score = $this->vg->players[$i];
+			$player = $this->view->gs->players[$i];
+			$player_score = $this->view->players[$i];
 			if ($player->kill_round >= 0 && $player->kill_round < $round)
 			{
 				continue;
@@ -36,7 +36,7 @@ class Page extends ViewGamePageBase
 			echo '<td align="center">';
 			if ($player->role == PLAYER_ROLE_MAFIA || $player->role == PLAYER_ROLE_DON)
 			{
-				foreach ($this->vg->gs->shooting[$round] as $shooter => $victim)
+				foreach ($this->view->gs->shooting[$round] as $shooter => $victim)
 				{
 					if ($shooter == $i)
 					{

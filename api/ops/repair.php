@@ -3,6 +3,7 @@
 require_once '../../include/api.php';
 require_once '../../include/image.php';
 require_once '../../include/game_stats.php';
+require_once '../../include/game.php';
 require_once '../../include/snapshot.php';
 
 class ApiPage extends OpsApiPageBase
@@ -299,7 +300,7 @@ class ApiPage extends OpsApiPageBase
 	function stats_op()
 	{
 		$last_id = 0;
-		$query = new DbQuery('SELECT id, log, end_time FROM games WHERE result > 0');
+		$query = new DbQuery('SELECT id, log, json, end_time FROM games WHERE result > 0');
 		if (isset($_REQUEST['last_id']))
 		{
 			$last_id = $_REQUEST['last_id'];
@@ -339,7 +340,7 @@ class ApiPage extends OpsApiPageBase
 		
 		foreach ($games as $row)
 		{
-			list($id, $log, $end_time) = $row;
+			list($id, $log, $json, $end_time) = $row;
 			if ($snapshot_time == 0)
 			{
 				$snapshot_time = Snapshot::snapshot_time($end_time) + SNAPSHOT_INTERVAL;
@@ -368,13 +369,21 @@ class ApiPage extends OpsApiPageBase
 			try
 			{
 				Db::begin();
-				$gs = new GameState();
-				$gs->init_existing($row[0], $row[1]);
-				if ($gs->error != NULL)
+				if (empty($log))
 				{
-					echo '<a href="view_game.php?id="' . $id . '" target="_blank">Game ' . $id . '</a> error: ' . $gs->error . '<br>';
+					$game = new Game($json);
 				}
-				save_game_results($gs);
+				else
+				{
+					$gs = new GameState();
+					$gs->init_existing($id, $log);
+					if ($gs->error != NULL)
+					{
+						echo '<a href="view_game.php?id="' . $id . '" target="_blank">Game ' . $id . '</a> error: ' . $gs->error . '<br>';
+					}
+					$game = new Game($gs);
+				}
+				save_game_results($game);
 				Db::commit();
 			}
 			catch (Exception $e)

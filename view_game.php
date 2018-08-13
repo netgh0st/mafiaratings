@@ -17,9 +17,9 @@ class Page extends ViewGamePageBase
 		echo '<td width="50" align="center">'.get_label('Role').'</td></tr>';
 		for ($i = 0; $i < 10; ++$i)
 		{
-			$player = $this->vg->gs->players[$i];
-			$player_score = $this->vg->players[$i];
-			// if ($player->id == $this->vg->mark_player)
+			$player = $this->view->gs->players[$i];
+			$player_score = $this->view->players[$i];
+			// if ($player->id == $this->view->mark_player)
 			// {
 				// echo '<tr class="lighter">';
 			// }

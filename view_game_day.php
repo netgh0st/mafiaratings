@@ -10,7 +10,7 @@ class Page extends ViewGamePageBase
 	
 		$voting = NULL;
 		$voting1 = NULL;
-		foreach ($this->vg->gs->votings as $v)
+		foreach ($this->view->gs->votings as $v)
 		{
 			if ($v->round == $round)
 			{
@@ -45,8 +45,8 @@ class Page extends ViewGamePageBase
 		echo '<td width="80" align="center">'.get_label('Role').'</td></tr>';
 		for ($i = 0; $i < 10; ++$i)
 		{
-			$player = $this->vg->gs->players[$i];
-			$player_score = $this->vg->players[$i];
+			$player = $this->view->gs->players[$i];
+			$player_score = $this->view->players[$i];
 			if ($player->kill_round >= 0 && $player->kill_round < $round)
 			{
 				continue;
@@ -70,7 +70,7 @@ class Page extends ViewGamePageBase
 				echo '&nbsp;</td>';
 				
 				echo '<td align="center">';
-				if (($this->vg->gs->flags & GAME_FLAG_SIMPLIFIED_CLIENT) == 0)
+				if (($this->view->gs->flags & GAME_FLAG_SIMPLIFIED_CLIENT) == 0)
 				{
 					$voted_for = $voting->votes[$i];
 					if ($voted_for >= 0)

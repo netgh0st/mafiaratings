@@ -15,7 +15,7 @@ class ViewGamePlayer
 
 class ViewGame
 {
-	public $gs;
+	public $game;
 	public $event_id;
 	public $event;
 	public $event_flags;
@@ -46,19 +46,18 @@ class ViewGame
 	{
 		if ($id <= 0)
 		{
-			$id = $this->gs->id;
+			$id = $this->game->id;
 		}
 		
-		$this->gs = new GameState();
-		$this->gs->init_existing($id);
+		$this->game = new Game($id);
 		
-		if ($this->gs->moder_id > 0)
+		if ($this->game->moderator_id > 0)
 		{
-			list ($this->moder, $this->moder_flags) = Db::record(get_label('moderator'), 'SELECT name, flags FROM users WHERE id = ?', $this->gs->moder_id);
+			list ($this->moder, $this->moder_flags) = Db::record(get_label('moderator'), 'SELECT name, flags FROM users WHERE id = ?', $this->game->moderator_id);
 		}
 		else
 		{
-			list ($this->moder) = Db::record(get_label('moderator'), 'SELECT name FROM incomers WHERE id = ?', -$this->gs->moder_id);
+			list ($this->moder) = Db::record(get_label('moderator'), 'SELECT name FROM incomers WHERE id = ?', -$this->game->moderator_id);
 		}
 		
 		$query = new DbQuery(
@@ -103,7 +102,6 @@ class ViewGame
 			$player_stats = new ViewGamePlayer();
 			list ($number, $player_stats->rating_before, $player_stats->rating_earned, $player_stats->user_flags) = $row;
 			--$number;
-			$player = $this->gs->players[$number];
 			$this->players[$number] = $player_stats;
 		}
 	}
@@ -115,7 +113,7 @@ class ViewGame
 		{
 			return false;
 		}
-		return $_profile->is_admin() || $_profile->is_manager($this->gs->club_id);
+		return $_profile->is_admin() || $_profile->is_manager($this->game->club_id);
 	}
 	
 	function get_title()
@@ -133,13 +131,13 @@ class ViewGame
 				$state = get_label('Mafia\'s victory.');
 				break;
 		}
-		return get_label('Game [0]. [1]', $this->gs->id, $state);
+		return get_label('Game [0]. [1]', $this->game->id, $state);
 	}
 }
 
 class ViewGamePageBase extends PageBase
 {
-	protected $vg;
+	protected $view;
 	protected $gametime;
 	private $last_gametime;
 	
@@ -149,7 +147,7 @@ class ViewGamePageBase extends PageBase
 	
 	protected function show_player_name($player, $player_score)
 	{
-		$gs = $this->vg->gs;
+		$gs = $this->view->game;
 		echo '<td width="48"><a href="view_game_stats.php?num=' . $player->number . '&bck=1" title="' . $player->nick . '">';
 		if ($player_score != NULL)
 		{
@@ -197,6 +195,80 @@ class ViewGamePageBase extends PageBase
 		echo '</td>';
 	}
 	
+	
+	// returns when last gametime and round: 0 - not started; 1 - initial night; 2 - day 1; 3 - night 1; etc
+	private function get_last_gametime()
+	{
+		if (!isset($this->game->rounds))
+		{
+			return 0;
+		}
+		
+		$round = count($this->game->rounds) - 1;
+		if ($round < 0)
+		{
+			return 0;
+		}
+		
+		
+		
+		
+		if ($log_num >= 0)
+		{
+			$log = $this->log[$log_num];
+			$gamestate = $log->gamestate;
+			$round = $log->round;
+		}
+		else
+		{
+			$gamestate = $this->gamestate;
+			$round = $this->round;
+		}
+		
+		switch ($gamestate)
+		{
+			case GAME_NOT_STARTED:
+				return 0;
+			case GAME_NIGHT0_START:
+			case GAME_NIGHT0_ARRANGE:
+				return 1;
+			case GAME_DAY_START:
+			case GAME_DAY_KILLED_SPEAKING: // deprecated - left to support old logs
+			case GAME_DAY_PLAYER_SPEAKING:
+			case GAME_VOTING_START:
+			case GAME_VOTING_KILLED_SPEAKING:
+			case GAME_VOTING:
+			case GAME_VOTING_MULTIPLE_WINNERS:
+			case GAME_VOTING_NOMINANT_SPEAKING:
+			case GAME_DAY_FREE_DISCUSSION:
+			case GAME_DAY_GUESS3:
+				return $round * 2 + 2;
+				
+			case GAME_NIGHT_START:
+			case GAME_NIGHT_SHOOTING:
+			case GAME_NIGHT_DON_CHECK:
+			case GAME_NIGHT_DON_CHECK_END:
+			case GAME_NIGHT_SHERIFF_CHECK:
+			case GAME_NIGHT_SHERIFF_CHECK_END:
+				return $round * 2 + 3;
+				
+			case GAME_MAFIA_WON:
+			case GAME_CIVIL_WON:
+			case GAME_CHOOSE_BEST_PLAYER:
+			case GAME_CHOOSE_BEST_MOVE:
+				if ($log_num < 0)
+				{
+					$log_num = count($this->log);
+				}
+				if ($log_num > 0)
+				{
+					return $this->get_last_gametime($log_num - 1);
+				}
+				break;
+		}
+		return 0;
+	}
+	
 	protected function prepare()
 	{
 		$id = -1;
@@ -205,27 +277,27 @@ class ViewGamePageBase extends PageBase
 			$id = $_REQUEST['id'];
 		}
 		
-		$this->vg = NULL;
+		$this->view = NULL;
 		if (isset($_SESSION['view_game']))
 		{
-			$this->vg = $_SESSION['view_game'];
-			if ($id > 0 && $this->vg->gs->id != $id)
+			$this->view = $_SESSION['view_game'];
+			if ($id > 0 && $this->view->game->id != $id)
 			{
-				$this->vg = new ViewGame($id);
-				$_SESSION['view_game'] = $this->vg;
+				$this->view = new ViewGame($id);
+				$_SESSION['view_game'] = $this->view;
 			}
-			else if ($this->vg->result == 0)
+			else if ($this->view->result == 0)
 			{
-				$this->vg->refresh();
+				$this->view->refresh();
 			}
 		}
 		else if ($id > 0)
 		{
-			$this->vg = new ViewGame($id);
-			$_SESSION['view_game'] = $this->vg;
+			$this->view = new ViewGame($id);
+			$_SESSION['view_game'] = $this->view;
 		}
 		
-		if ($this->vg == NULL)
+		if ($this->view == NULL)
 		{
 			throw new FatalExc(get_label('Unknown [0]', get_label('game')));
 		}
@@ -245,8 +317,8 @@ class ViewGamePageBase extends PageBase
 			--$this->gametime;
 		}
 		
-		$this->last_gametime = $this->vg->gs->get_last_gametime();
-		$this->_title = $this->vg->get_title();
+		$this->last_gametime = $this->view->game->get_last_gametime();
+		$this->_title = $this->view->get_title();
 		
 		if ($this->gametime < 0)
 		{
@@ -325,7 +397,7 @@ class ViewGamePageBase extends PageBase
 		}
 		
 		$this->url_base .= $separator . 'id=';
-		$gs = $this->vg->gs;
+		$gs = $this->view->game;
 		$this->prev_game_id = $this->next_game_id = 0;
 		$query = new DbQuery('SELECT g.id FROM games g WHERE g.id <> ? AND g.start_time <= ? AND g.result > 0', $gs->id, $gs->start_time, $condition);
 		$query->add(' ORDER BY g.start_time DESC, g.id DESC');
@@ -346,8 +418,8 @@ class ViewGamePageBase extends PageBase
 	{
 		global $_profile;
 		
-		$vg = $this->vg;
-		$gs = $vg->gs;
+		$vg = $this->view;
+		$gs = $vg->game;
 		echo '<table class="head" width="100%"><tr>';
 		if ($this->prev_game_id > 0)
 		{
@@ -476,7 +548,7 @@ class ViewGamePageBase extends PageBase
 	protected function js_on_load()
 	{
 ?>
-		mr.showComments("game", <?php echo $this->vg->gs->id; ?>, 20, false, "wide_comment");
+		mr.showComments("game", <?php echo $this->view->game->id; ?>, 20, false, "wide_comment");
 <?php
 	}
 	
@@ -485,7 +557,7 @@ class ViewGamePageBase extends PageBase
 ?>
 		function deleteGame(gameId)
 		{
-			mr.deleteGame(gameId, "<?php echo get_label('Are you sure you want to delete the game [0]?', $this->vg->gs->id); ?>", function(){
+			mr.deleteGame(gameId, "<?php echo get_label('Are you sure you want to delete the game [0]?', $this->view->game->id); ?>", function(){
 				window.location.replace("<?php echo get_back_page(); ?>");
 			});
 		}
@@ -498,7 +570,7 @@ function reset_viewed_game($game_id, $keep = true)
 	if (isset($_SESSION['view_game']))
 	{
 		$vg = $_SESSION['view_game'];
-		if ($vg->gs->id == $game_id)
+		if ($vg->game->id == $game_id)
 		{
 			if ($keep)
 			{

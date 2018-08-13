@@ -23,8 +23,8 @@ class Page extends PageBase
 		{
 			throw new FatalExc(get_label('Unknown [0]', get_label('game')));
 		}
-		$this->vg = $_SESSION['view_game'];
-		$this->stats = new GamePlayerStats($this->vg->gs, $_REQUEST['num']);
+		$this->view = $_SESSION['view_game'];
+		$this->stats = new GamePlayerStats($this->view->game, $_REQUEST['num']);
 		
 		$this->_title = $this->stats->get_title();
 		$player = $this->stats->gs->players[$this->stats->player_num];
@@ -120,7 +120,7 @@ class Page extends PageBase
 		$stats = $this->stats;
 		$gs = $stats->gs;
 		$player = $gs->players[$stats->player_num];
-		$player_score = $this->vg->players[$stats->player_num];
+		$player_score = $this->view->players[$stats->player_num];
 
 		echo '<p><table class="bordered" width="100%" id="players">';
 		echo '<tr class="th-short darker"><td colspan="2"><b>' . get_label('General') . '</b></td></tr>';

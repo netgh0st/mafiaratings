@@ -13,8 +13,8 @@ class Page extends ViewGamePageBase
 		echo '<td width="80" align="center">'.get_label('Role').'</td></tr>';
 		for ($i = 0; $i < 10; ++$i)
 		{
-			$player = $this->vg->gs->players[$i];
-			$player_score = $this->vg->players[$i];
+			$player = $this->view->gs->players[$i];
+			$player_score = $this->view->players[$i];
 			
 			echo '<tr class="dark">';
 			echo '<td width="20" class="darker" align="center">' . ($i + 1) . '</td>';

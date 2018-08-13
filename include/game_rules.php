@@ -614,6 +614,78 @@ class GameRules
 		</script>
 <?php
 	}
+	
+	public function standard_object()
+	{
+		$rules = new stdClass();
+		if ($this->flags & RULES_FLAG_DEFENSIVE_ROUND)
+		{
+			$rules->defensive_round = true; // all nominated players speak once again before voting
+		}
+		
+		if ($this->flags & RULES_FLAG_FREE_ROUND)
+		{
+			$rules->free_round = true; // players have a short non moderated discussion every day
+		}
+		
+		if ($this->flags & RULES_FLAG_DAY1_NO_KILL)
+		{
+			$rules->day1_voting = 'no_kill'; // no one is killed in the first round - winner just speaks
+		}
+		else if ($this->flags & RULES_FLAG_DAY1_NO_DIFF)
+		{
+			$rules->day1 = 'no_diff'; // voting and killing in the day1 is the same as in any other day. If not set, when only one player is nominated - no voting, no killing.
+		}
+		
+		if ($this->flags & RULES_FLAG_NO_CRASH_4)
+		{
+			$rules->crash4 = "no"; // when there are 4 players and votes are 2-2, no on is killed - the night is falling
+		}
+		
+		if ($this->flags & RULES_FLAG_NIGHT_KILL_CAN_NOMINATE)
+		{
+			$rules->dead_nomination = true; // a player killed in night can nominate
+		}
+		
+		switch ($this->flags & RULES_MASK_VOTING_CANCEL_MASK)
+		{
+			case RULES_VOTING_CANCEL_YES: 
+				// voting is always canceled when someone is killed by warnings (default)
+				break;
+			case RULES_VOTING_CANCEL_NO: 
+				$rules->voiting_cancel = 'never'; // voting is never canceled when someone is killed by warnings
+				break;
+			case RULES_VOTING_CANCEL_BY_NOM: 
+				$rules->voiting_cancel = 'if_nominated'; // voting is canceled when someone is killed by warnings only if the one was nominated
+				break;
+		}
+		
+		if (($this->flags & RULES_BEST_PLAYER) == 0)
+		{
+			 $rules->best_player = "no";
+		}
+		
+		if ($this->flags & RULES_BEST_MOVE)
+		{
+			$rules->best_move = "one";
+		}
+		
+		if (($this->flags & RULES_GUESS_MAFIA) == 0)
+		{
+			$rules->guess_mafia = false;
+		}
+		
+		if ($this->flags & RULES_MUTE_NEXT)
+		{
+			$rules->warn3_same_day = false;
+		}
+		
+		if ($this->flags & RULES_MUTE_CRIT)
+		{
+			$rules->warn3_crit = "short";
+		}
+		return $rules;
+	}
 }
 
 ?>
